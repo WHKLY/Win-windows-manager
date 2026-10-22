@@ -34,3 +34,81 @@
 - AutoHotkey 运行器实际版本确认为 2.0.30。
 - 本轮未创建功能源码，未运行功能测试或真机布局测试。
 - 验收状态统一保持为 `Not started` 或 `Not tested`。
+
+## 2026-10-23：v0.1.0 MVP 构建
+
+阶段：A-D 主流程实现，E 兼容性验收进行中。
+
+| 文件 | 变化 | 用途 |
+|---|---|---|
+| `main.ahk` | 新增 | AHK v2 入口、DPI 设置、异常处理和编译元数据 |
+| `config.ini` | 新增 | 自动/手动策略、平滑移动、评分、撤销、排除和快捷键 |
+| `lib/Geometry.ahk` | 新增 | 矩形、边界、相交、插值和缓动 |
+| `lib/Config.ahk` | 新增 | 配置读取、默认值和范围校验 |
+| `lib/Logger.ahk` | 新增 | 脱敏日志 |
+| `lib/WindowEvents.ahk` | 新增 | WinEvent hook 生命周期 |
+| `lib/WindowRegistry.ahk` | 新增 | 窗口身份、分类、显示器、锁定和交互状态 |
+| `lib/LayoutPlanner.ahk` | 新增 | 自动协同、手动联合优化、评分和预算控制 |
+| `lib/LayoutExecutor.ahk` | 新增 | 预检查、平滑帧执行、最终读回和取消 |
+| `lib/LayoutHistory.ahk` | 新增 | 布局前快照与历史 |
+| `lib/WindowManagerApp.ahk` | 新增 | 触发控制、托盘、快捷键、日志、Undo 和自启 |
+| `scripts/test.ps1` | 新增 | 统一测试入口 |
+| `scripts/build.ps1` | 新增 | 编译 exe、复制配置/文档、生成 SHA-256 和 zip |
+| `tests/run_tests.ahk` | 新增 | 18 项纯逻辑测试 |
+| `tests/motion_integration.ahk` | 新增 | 11 项真实测试窗口平滑动画测试 |
+| `tests/window_registry_integration.ahk` | 新增 | 7 项真实外部窗口分类和移动测试 |
+| `tests/new_window_integration.ahk` | 新增 | 新窗口事件到 DryRun 布局的集成测试 |
+| `tests/manual_undo_integration.ahk` | 新增 | 锁定、手动重排与 Undo 集成测试 |
+| `tests/app_smoke.ahk` | 新增 | 启动窗口、热键、日志和退出冒烟测试 |
+| `tests/helpers/window_host.ahk` | 新增 | 隔离测试窗口宿主 |
+| `README.md` | 重写 | 运行、配置、平滑移动、构建和限制说明 |
+| `docs/guides/architecture.md` | 新增 | 模块和事务/动画设计 |
+| `docs/guides/manual-test-plan.md` | 新增 | T01-T26 与 S01-S05 手动验收步骤 |
+| `docs/records/test-report-2026-10-23.md` | 新增 | 自动测试、编译和 exe 冒烟证据 |
+| `docs/records/known-limitations.md` | 新增 | 当前兼容性和安全限制 |
+| `docs/records/acceptance.md` | 更新 | 自动化、阶段和真机验收状态 |
+| `.gitignore` | 更新 | 忽略 `.tools/` 与测试运行目录 |
+
+验证：
+
+- `scripts/test.ps1` 退出码 0。
+- 18 项 Core、11 项 Motion、7 项 Registry、1 项新窗口、5 项手动/Undo、1 项启动检查通过。
+- 编译产物 `dist/WindowswindowsManager.exe` 以 `--smoke-test` 启动，退出码 0。
+- 详细结果见 `docs/records/test-report-2026-10-23.md`。
+
+## 2026-10-23：窗口事件稳定性修复
+
+阶段：真实日志诊断与回归。
+
+复现症状：
+
+- 日志反复出现 `Expected a Number but got a String`，`extra` 为 `hwnd:pid` 形式的窗口身份键。
+- 日志反复出现 `new_window_queue_full`。
+- 部分销毁事件在 `WinGetClass` 处产生 `Target window not found`。
+
+根因：
+
+1. `WindowRegistry.CompareWindows` 使用 `<`/`>` 比较非纯数字的窗口身份字符串，AHK 尝试数字转换并抛出异常。
+2. 每个新窗口事件都重新安排去抖定时器，持续事件流会不断推迟处理，最终造成队列溢出。
+3. 同一 `ProcessNewCandidates` 回调可能堆叠重入，放大窗口销毁竞态。
+
+修复：
+
+- 全部窗口身份排序改用 `StrCompare`。
+- `CREATE` 事件不再直接入队，只在窗口 `SHOW` 时登记。
+- 首个候选只安排一次处理定时器，后续事件不重置；回调开始时清除调度标志。
+- 待处理上限从 64 提升到 256；队列满时不再把窗口永久标记为已处理。
+- `WinGetClass` 和进程名读取增加窗口消失的局部异常处理。
+
+新增回归：
+
+- `tests/window_churn_regression.ahk`：200 个窗口分批创建/销毁。
+- `tests/window_destroy_race_regression.ahk`：960 个短生命周期窗口触发分类/销毁边界。
+- 两个压力场景结果均为 `queue_full=0`、`window_not_found=0`、`other_uncaught=0`。
+
+修复后初步真实使用验证：
+
+- 用户使用修复版 exe 完成自动放置、协同重排和手动重排。
+- 检查时间范围内的 48 行新增日志：0 ERROR、0 WARN、0 队列溢出。
+- 记录 38 次实际布局、11 次协同重排、7 次手动重排、6 次“当前布局已较优”。
+- 用户确认初步测试通过。

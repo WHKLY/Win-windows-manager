@@ -34,8 +34,10 @@
 | 推荐脚本运行器 | `C:\Program Files\AutoHotkey\v2\AutoHotkey.exe` |
 | 脚本运行器版本 | 2.0.30 |
 | 本地帮助文件 | `C:\Program Files\AutoHotkey\v2\AutoHotkey.chm` |
+| Ahk2Exe | 1.1.37.02a2 |
+| 本地编译器路径 | `.tools\Ahk2Exe\Ahk2Exe.exe`（不纳入 Git） |
 
-用户要求最终交付可直接运行的 `.exe`。开始构建时需确认 Ahk2Exe 编译器位置；当前在默认安装目录的初步查询中尚未发现 `Ahk2Exe.exe`，构建阶段将再次核对其他安装路径或安装方式。
+用户要求最终交付可直接运行的 `.exe`。构建阶段已下载官方 Ahk2Exe 发布包到项目忽略目录，并以 AutoHotkey v2 64 位运行器成功生成 `dist/WindowswindowsManager.exe`。
 
 ## 工具
 
@@ -54,4 +56,4 @@
 
 - Codex 当前沙箱内部分 WMI 查询被拒绝，因此系统信息使用了注册表、PowerShell 和 .NET 运行时可访问的数据。
 - `conda info`/`conda env list` 在沙箱内因多进程管道权限失败；这不影响 AHK 项目，也不应被记录为 Conda 损坏。
-- 本阶段没有运行 AHK 脚本冒烟测试，因为尚未创建功能源码，且用户明确要求先不构建。
+- AHK 脚本、真实外部测试窗口、自动事件链和编译产物均已在当前环境完成受控测试。
