@@ -60,13 +60,13 @@ class LayoutExecutor {
 
         smooth := options.Smooth == true
         duration := Max(0, Round(options.DurationMs))
-        interval := Max(8, Round(options.FrameIntervalMs))
+        interval := Max(4, Round(options.FrameIntervalMs))
         maximumDuration := Max(duration, Round(options.MaxDurationMs))
         if (!smooth || duration <= 0) {
             duration := 0
         }
 
-        startTick := A_TickCount
+        startCounter := this.QueryPerformanceCounter()
         cancelled := false
         failed := false
         if (this.CancelRequested(options)) {
@@ -74,34 +74,58 @@ class LayoutExecutor {
         }
 
         if (!cancelled && duration > 0) {
-            while true {
-                elapsed := A_TickCount - startTick
-                if (this.CancelRequested(options)) {
-                    cancelled := true
-                    break
-                }
-                if (elapsed >= duration || elapsed > maximumDuration) {
-                    break
-                }
-                progress := elapsed / duration
-                for change in changes {
-                    if (!DllCall("IsWindow", "Ptr", change.hwnd, "Int")) {
-                        failed := true
-                        result.Errors.Push("window_destroyed_during_animation")
+            waitTimer := this.CreateHighResolutionTimer()
+            try {
+                durationUs := duration * 1000
+                maximumDurationUs := maximumDuration * 1000
+                intervalUs := interval * 1000
+                nextFrameAt := startCounter
+                while true {
+                    now := this.QueryPerformanceCounter()
+                    elapsedUs := now - startCounter
+                    if (this.CancelRequested(options)) {
                         cancelled := true
-                        break 2
+                        break
                     }
-                    frameRect := Geometry.InterpolateRect(change.from, change.target, progress)
-                    if (!this.SetWindowPosition(change.hwnd, frameRect)) {
-                        failed := true
-                        result.Errors.Push("set_window_pos_failed")
+                    if (elapsedUs >= durationUs || elapsedUs > maximumDurationUs) {
+                        break
                     }
+
+                    progress := elapsedUs / durationUs
+                    for change in changes {
+                        if (!DllCall("IsWindow", "Ptr", change.hwnd, "Int")) {
+                            failed := true
+                            result.Errors.Push("window_destroyed_during_animation")
+                            cancelled := true
+                            break 2
+                        }
+                        frameRect := Geometry.InterpolateRect(change.from, change.target, progress)
+                        if (!this.SetWindowPosition(change.hwnd, frameRect)) {
+                            failed := true
+                            result.Errors.Push("set_window_pos_failed")
+                        }
+                    }
+                    if (options.HasProp("FrameObserver")) {
+                        observer := options.FrameObserver
+                        if (IsObject(observer)) {
+                            observer(elapsedUs / 1000)
+                        }
+                    }
+
+                    nextFrameAt += intervalUs
+                    nowAfterFrame := this.QueryPerformanceCounter()
+                    if (nowAfterFrame - startCounter >= durationUs) {
+                        break
+                    }
+                    if (nextFrameAt < nowAfterFrame) {
+                        nextFrameAt := nowAfterFrame + intervalUs
+                    }
+                    this.WaitUntil(nextFrameAt, waitTimer)
                 }
-                remaining := duration - (A_TickCount - startTick)
-                if (remaining <= 0) {
-                    break
+            } finally {
+                if (waitTimer) {
+                    DllCall("CloseHandle", "Ptr", waitTimer)
                 }
-                Sleep(Max(1, Min(interval, remaining)))
             }
         }
 
@@ -128,7 +152,7 @@ class LayoutExecutor {
             }
         }
 
-        result.ElapsedMs := A_TickCount - startTick
+        result.ElapsedMs := (this.QueryPerformanceCounter() - startCounter) / 1000
         result.Cancelled := cancelled
 
         applied := 0
@@ -179,6 +203,57 @@ class LayoutExecutor {
             "UInt", flags,
             "Int"
         )
+    }
+
+    static QueryPerformanceCounter() {
+        static frequency := 0
+        if (!frequency) {
+            DllCall("Kernel32\QueryPerformanceFrequency", "Int64*", &frequency)
+        }
+        counter := 0
+        DllCall("Kernel32\QueryPerformanceCounter", "Int64*", &counter)
+        return counter * 1000000 / frequency
+    }
+
+    static CreateHighResolutionTimer() {
+        return DllCall(
+            "CreateWaitableTimerExW",
+            "Ptr", 0,
+            "Ptr", 0,
+            "UInt", 0x00000002,
+            "UInt", 0x001F0003,
+            "Ptr"
+        )
+    }
+
+    static WaitUntil(targetMicroseconds, waitTimer := 0) {
+        remaining := targetMicroseconds - this.QueryPerformanceCounter()
+        if (remaining > 0 && waitTimer) {
+            dueTime := Buffer(8, 0)
+            NumPut("Int64", -Max(1, Round(remaining * 10)), dueTime, 0)
+            if (DllCall(
+                "SetWaitableTimer",
+                "Ptr", waitTimer,
+                "Ptr", dueTime.Ptr,
+                "Int", 0,
+                "Ptr", 0,
+                "Ptr", 0,
+                "Int", 0,
+                "Int"
+            )) {
+                DllCall("WaitForSingleObject", "Ptr", waitTimer, "UInt", 0xFFFFFFFF, "UInt")
+                return
+            }
+        }
+
+        while true {
+            now := this.QueryPerformanceCounter()
+            remaining := targetMicroseconds - now
+            if (remaining <= 0) {
+                return
+            }
+            Sleep(0)
+        }
     }
 
     static GetWindowRect(hwnd) {

@@ -1,7 +1,7 @@
 #Requires AutoHotkey v2.0
 ;@Ahk2Exe-SetName Win-windows-manager
 ;@Ahk2Exe-SetDescription Win-windows-manager - smooth Windows window layout manager
-;@Ahk2Exe-SetVersion 0.1.0.0
+;@Ahk2Exe-SetVersion 0.1.1.0
 #SingleInstance Force
 Persistent
 
@@ -18,6 +18,7 @@ try {
 #Include lib\LayoutPlanner.ahk
 #Include lib\LayoutExecutor.ahk
 #Include lib\LayoutHistory.ahk
+#Include lib\DoubleTapGesture.ahk
 #Include lib\WindowEvents.ahk
 #Include lib\WindowManagerApp.ahk
 

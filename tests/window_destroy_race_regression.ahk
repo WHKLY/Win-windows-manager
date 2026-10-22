@@ -8,6 +8,7 @@
 #Include ..\lib\LayoutPlanner.ahk
 #Include ..\lib\LayoutExecutor.ahk
 #Include ..\lib\LayoutHistory.ahk
+#Include ..\lib\DoubleTapGesture.ahk
 #Include ..\lib\WindowEvents.ahk
 #Include ..\lib\WindowManagerApp.ahk
 

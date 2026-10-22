@@ -17,7 +17,6 @@ class WindowRegistry {
         this.Seen := Map()
         this.Locks := Map()
         this.Interacting := Map()
-        this.RecentUserChanges := Map()
         this.Applying := false
         this.MotionCancelRequested := false
         this.enumeratedMonitors := []
@@ -78,9 +77,6 @@ class WindowRegistry {
             if (this.Interacting.Has(key)) {
                 this.Interacting.Delete(key)
             }
-            if (this.RecentUserChanges.Has(key)) {
-                this.RecentUserChanges.Delete(key)
-            }
         }
     }
 
@@ -88,7 +84,7 @@ class WindowRegistry {
         return hwnd && DllCall("IsWindow", "Ptr", hwnd, "Int")
     }
 
-    GetWindowInfo(hwnd) {
+    GetWindowInfo(hwnd, allowFullscreen := false) {
         if (!this.IsValidWindow(hwnd)) {
             return {eligible: false, reason: "invalid_window"}
         }
@@ -179,15 +175,17 @@ class WindowRegistry {
             return {eligible: false, reason: "missing_monitor"}
         }
 
-        if (!isMinimized && !isMaximized && this.CoversMonitor(rect, monitorInfo.rect)) {
+        isNonMaximizedFullscreen := !isMinimized
+            && !isMaximized
+            && this.CoversMonitor(rect, monitorInfo.rect)
+        isFullscreen := !isMinimized && (isMaximized || isNonMaximizedFullscreen)
+        if (isNonMaximizedFullscreen && !allowFullscreen) {
             return {eligible: false, reason: "exclusive_fullscreen"}
         }
 
         identity := hwnd ":" pid
-        canMove := hasCaption && !isMaximized
-        canResize := hasThickFrame && !isMaximized
-        recentAt := this.RecentUserChanges.Has(identity) ? this.RecentUserChanges[identity] : 0
-        recent := recentAt > 0 && (A_TickCount - recentAt) <= this.Config.RecentlyUserMovedGraceMs
+        canMove := (hasCaption || (allowFullscreen && isFullscreen)) && !isMaximized
+        canResize := (hasThickFrame || (allowFullscreen && isFullscreen)) && !isMaximized
         isLocked := this.Locks.Has(identity)
         interacting := this.Interacting.Has(identity)
         foreground := DllCall("GetForegroundWindow", "Ptr")
@@ -210,9 +208,9 @@ class WindowRegistry {
             workArea: monitorInfo.workArea,
             isMinimized: isMinimized,
             isMaximized: isMaximized,
+            isFullscreen: isFullscreen,
             isLocked: isLocked,
             isInteracting: interacting,
-            recentlyUserChanged: recent,
             isForeground: hwnd = foreground,
             isTopmost: (extendedStyle & 0x00000008) != 0,
             canMove: canMove,
@@ -369,10 +367,10 @@ class WindowRegistry {
         return 0
     }
 
-    GetEligibleWindows(monitor, includeMaximized := false, newHwnd := 0) {
+    GetEligibleWindows(monitor, includeMaximized := false, newHwnd := 0, includeFullscreen := false) {
         result := []
         for hwnd in WinGetList() {
-            info := this.GetWindowInfo(hwnd)
+            info := this.GetWindowInfo(hwnd, includeFullscreen)
             if (!info.eligible) {
                 continue
             }
@@ -462,7 +460,6 @@ class WindowRegistry {
         if (this.Interacting.Has(key)) {
             this.Interacting.Delete(key)
         }
-        this.RecentUserChanges[key] := A_TickCount
     }
 
     BeginApply() {

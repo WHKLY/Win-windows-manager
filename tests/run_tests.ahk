@@ -2,6 +2,7 @@
 #SingleInstance Force
 
 #Include ..\lib\Geometry.ahk
+#Include ..\lib\DoubleTapGesture.ahk
 #Include ..\lib\Config.ahk
 #Include ..\lib\LayoutPlanner.ahk
 
@@ -9,6 +10,7 @@ global TestFailures := 0
 global TestCount := 0
 
 TestGeometry()
+TestDoubleTapGesture()
 TestPlanner()
 
 if (TestFailures = 0) {
@@ -38,6 +40,20 @@ TestGeometry() {
     Assert(interpolated.w = 200 && interpolated.h = 250, "smooth interpolation size")
 }
 
+TestDoubleTapGesture() {
+    gesture := DoubleTapGesture(500)
+    Assert(!gesture.Press(1000), "single tap does not trigger")
+    Assert(gesture.Press(1400), "second tap inside interval triggers")
+    Assert(!gesture.Press(1550), "gesture resets after a double tap")
+    Assert(gesture.Press(1700), "next two taps trigger again")
+
+    slowGesture := DoubleTapGesture(500)
+    Assert(!slowGesture.Press(1000), "slow gesture first tap")
+    Assert(!slowGesture.Press(1601), "slow gesture second tap does not trigger")
+    slowGesture.Reset()
+    Assert(!slowGesture.Press(2000), "reset clears previous tap")
+}
+
 TestPlanner() {
     FileAppend("START: planner tests`n", "*", "UTF-8")
     try {
@@ -53,6 +69,17 @@ TestPlanner() {
         ExitApp(2)
     }
     workArea := Geometry.Rect(0, 0, 1920, 1080)
+
+    neutralWindow := MakeWindow("cost-neutral", 100, 100, 600, 500)
+    recentWindow := MakeWindow("cost-neutral", 100, 100, 600, 500, false, true, false, true)
+    neutralTargets := LayoutPlanner.OriginalTargets([neutralWindow])
+    recentTargets := LayoutPlanner.OriginalTargets([recentWindow])
+    neutralScore := LayoutPlanner.ScoreLayout([neutralWindow], neutralTargets, workArea, "auto", cfg)
+    recentScore := LayoutPlanner.ScoreLayout([recentWindow], recentTargets, workArea, "auto", cfg)
+    Assert(
+        Abs(neutralScore.Total - recentScore.Total) < 0.0001,
+        "recently adjusted window has no additional movement cost"
+    )
 
     windows := [
         MakeWindow("5", 600, 300, 800, 600),
@@ -75,18 +102,42 @@ TestPlanner() {
     Assert(plan.ChangedIds.Length >= 2, "manual plan changes multiple windows")
     Assert(Geometry.Equal(plan.Targets["1"], windows[4].rect), "locked window remains fixed")
     Assert(AllTargetsWithin(plan.Targets, workArea), "manual targets remain on display")
+    FileAppend(
+        "INFO: manual coverage before=" Round(plan.ScoreBefore.Coverage, 4)
+            " after=" Round(plan.ScoreAfter.Coverage, 4) "`n",
+        "*",
+        "UTF-8"
+    )
+    Assert(
+        plan.ScoreAfter.Coverage > plan.ScoreBefore.Coverage,
+        "manual reflow improves work-area coverage"
+    )
 
     secondPlan := LayoutPlanner.PlanManual(windows, workArea, cfg, "5")
     FileAppend("INFO: second manual plan completed`n", "*", "UTF-8")
     Assert(PlanSignature(plan) = PlanSignature(secondPlan), "manual plan deterministic")
 
     autoWindows := [
-        MakeWindow("new", 1000, 300, 2080, 1260, true),
-        MakeWindow("old-a", 700, 50, 500, 1700),
-        MakeWindow("old-b", 1500, 50, 500, 1700)
+        MakeWindow("new", 1200, 200, 900, 700, true),
+        MakeWindow("old-a", 100, 350, 800, 700),
+        MakeWindow("old-b", 1500, 350, 800, 700, false, true, false, true)
     ]
-    autoPlan := LayoutPlanner.PlanAuto(autoWindows, Geometry.Rect(0, 0, 3200, 1800), cfg, "new")
+    autoPlan := LayoutPlanner.PlanAuto(autoWindows, Geometry.Rect(0, 0, 2400, 1400), cfg, "new")
     autoExistingChanged := LayoutPlanner.CountChangedExisting(autoWindows, autoPlan.Targets, "new")
+    autoBaseline := LayoutPlanner.OriginalTargets(autoWindows)
+    cooperativeCandidates := LayoutPlanner.SelectCooperativeWindows(
+        autoWindows,
+        LayoutPlanner.FindWindowIndex(autoWindows, "new"),
+        autoBaseline,
+        Geometry.Rect(0, 0, 2400, 1400),
+        cfg
+    )
+    recentlyChangedIncluded := false
+    for index in cooperativeCandidates {
+        if (autoWindows[index].id = "old-b") {
+            recentlyChangedIncluded := true
+        }
+    }
     FileAppend(
         "INFO: automatic plan completed strategy=" autoPlan.Strategy
             " changed=" autoPlan.ChangedIds.Length
@@ -116,6 +167,27 @@ TestPlanner() {
     Assert(autoPlan.ChangedIds.Length >= 1, "automatic plan changes at least the new window")
     Assert(autoPlan.Strategy = "cooperative_reflow", "automatic plan uses cooperative reflow")
     Assert(autoExistingChanged > 0, "cooperative plan moves existing windows")
+    Assert(recentlyChangedIncluded, "recently adjusted window remains in automatic candidates")
+    Assert(
+        autoPlan.ScoreAfter.Coverage > autoPlan.ScoreBefore.Coverage,
+        "automatic plan improves work-area coverage"
+    )
+    autoSizeCandidates := LayoutPlanner.SizeCandidates(
+        autoWindows[2],
+        autoBaseline["old-a"],
+        Geometry.Rect(0, 0, 2400, 1400),
+        cfg,
+        "auto_existing",
+        true
+    )
+    resizeCandidateAllowed := false
+    for size in autoSizeCandidates {
+        if (size.w != autoWindows[2].w || size.h != autoWindows[2].h) {
+            resizeCandidateAllowed := true
+            break
+        }
+    }
+    Assert(resizeCandidateAllowed, "automatic planning generates existing-window resize candidates")
 
     singleWindows := [
         MakeWindow("active", 40, 40, 1700, 950, false, true, false, false, true),
@@ -125,7 +197,13 @@ TestPlanner() {
     FileAppend("INFO: single plan completed`n", "*", "UTF-8")
     Assert(singlePlan.Valid, "single-window plan valid")
     target := singlePlan.Targets["active"]
-    Assert(target.w < 1700 && target.h < 950, "single active window resized to manageable size")
+    Assert(
+        target.w >= Round(singleWindows[1].w * cfg.MinimumExistingSizeRatio)
+            && target.w <= Round(singleWindows[1].w * cfg.MaximumExistingSizeRatio)
+            && target.h >= Round(singleWindows[1].h * cfg.MinimumExistingSizeRatio)
+            && target.h <= Round(singleWindows[1].h * cfg.MaximumExistingSizeRatio),
+        "single active window resized within configured range"
+    )
 
     fixedWindows := [
         MakeWindow("fixed-a", 100, 100, 700, 500, true, false),

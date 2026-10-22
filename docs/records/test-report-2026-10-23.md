@@ -23,16 +23,19 @@
 | 套件 | 数量 | 结果 | 覆盖内容 |
 |---|---:|---|---|
 | AHK 语法 | 1 | Passed | `main.ahk` 及全部 Include 可解析 |
-| Core | 18 | Passed | 矩形、边界、平滑插值、手动联合重排、确定性、自动协同移动、单窗口放置、固定尺寸 |
+| Core | 30 | Passed | 矩形、边界、平滑插值、双击手势、覆盖率、近期调整零额外成本、自动协同与缩放候选、确定性、单窗口放置、固定尺寸 |
 | Motion | 11 | Passed | 中间帧、最终几何、即时模式、焦点、Z-order、取消路径 |
+| Motion Performance | 1 | Passed | 5 窗口 300 ms 动画多次约 123.8–124.7 FPS，最大帧间隔 9.1–11.6 ms |
 | Registry | 7 | Passed | 独立外部进程窗口识别、显示器归属、锁定/解锁、真实移动 |
 | New window | 1 | Passed | WinEvent -> 去抖 -> 分类 -> DryRun 规划日志 |
 | Manual/Undo | 5 | Passed | 手动锁定保护、真实手动移动、Undo 恢复原几何 |
+| Double CapsLock | 1 | Passed | `~CapsLock` 注册、慢速双按不触发、快速双按触发一次 |
+| Fullscreen Double CapsLock | 14 | Passed | Topmost 最大化窗口与普通窗口共同恢复、缩小和重排 |
 | Window churn | 1 | Passed | 200 个窗口分批创建/销毁，无队列溢出或未捕获错误 |
 | Destroy race | 1 | Passed | 960 个短生命周期窗口，分类与销毁边界无异常 |
 | Startup | 1 | Passed | 已存在窗口启动不移动、默认热键注册、日志、安全退出 |
 
-合计 46 项自动/受控集成检查通过。
+合计 74 项自动/受控集成检查通过。
 
 测试日志检查结果：测试运行目录内无 `WARN` 或 `ERROR` 条目。
 
@@ -48,25 +51,25 @@
 
 | 文件 | 大小 | 结果 |
 |---|---:|---|
-| `dist/Win-windows-manager-v0.1.0.exe` | 1,428,992 bytes | 已生成 |
-| `dist/Win-windows-manager-v0.1.0.zip` | 随文档变化 | 已生成 |
+| `dist/Win-windows-manager-v0.1.1.exe` | 1,438,720 bytes | 已生成 |
+| `dist/Win-windows-manager-v0.1.1.zip` | 随文档变化 | 已生成 |
 
 可执行文件 SHA-256：
 
 ```text
-bbd9bf4008183dd7fb5cbe10a4b355e9b82be6c6c1a5c8e4f3d2da893861a26b
+3bb1237a8a4702ff9e4437a3d9486ff48cf90d92cf6d6b5a7f37aabbe9bbe5b0
 ```
 
 版本资源：
 
 - ProductName: `Win-windows-manager`
 - FileDescription: `Win-windows-manager - smooth Windows window layout manager`
-- FileVersion/ProductVersion: `0.1.0.0`
+- FileVersion/ProductVersion: `0.1.1.0`
 
 编译产物冒烟测试：
 
 ```powershell
-& '.\dist\Win-windows-manager-v0.1.0.exe' '--smoke-test'
+& '.\dist\Win-windows-manager-v0.1.1.exe' '--smoke-test'
 ```
 
 结果：退出码 `0`；日志确认 `compiled=1`、`dry_run=1`、`smoke_test=1`，并正常执行退出清理。

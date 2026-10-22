@@ -17,10 +17,23 @@ class Config {
         this.MinNewWindowShrinkRatio := this.ReadNumber("WindowSize", "MinNewWindowShrinkRatio", 0.75, 0.25, 1.0)
 
         this.AutoMoveExistingWindows := this.ReadBool("AutoReflow", "AutoMoveExistingWindows", true)
-        this.AutoResizeExistingWindows := this.ReadBool("AutoReflow", "AutoResizeExistingWindows", false)
-        this.MaxMovedExistingWindows := this.ReadInteger("AutoReflow", "MaxMovedExistingWindows", 3, 0, 20)
-        this.RecentlyUserMovedGraceMs := this.ReadInteger("AutoReflow", "RecentlyUserMovedGraceMs", 5000, 0, 60000)
-        this.MinimumQualityImprovementRatio := this.ReadNumber("AutoReflow", "MinimumQualityImprovementRatio", 0.08, 0.0, 1.0)
+        this.AutoResizeExistingWindows := this.ReadBool("AutoReflow", "AutoResizeExistingWindows", true)
+        this.MaxMovedExistingWindows := this.ReadInteger("AutoReflow", "MaxMovedExistingWindows", 6, 0, 20)
+        this.AutoMinimumExistingSizeRatio := this.ReadNumber(
+            "AutoReflow",
+            "AutoMinimumExistingSizeRatio",
+            0.80,
+            0.50,
+            1.0
+        )
+        this.AutoMaximumExistingSizeRatio := this.ReadNumber(
+            "AutoReflow",
+            "AutoMaximumExistingSizeRatio",
+            1.20,
+            1.0,
+            2.0
+        )
+        this.MinimumQualityImprovementRatio := this.ReadNumber("AutoReflow", "MinimumQualityImprovementRatio", 0.04, 0.0, 1.0)
         this.NewWindowDebounceMs := this.ReadInteger("AutoReflow", "NewWindowDebounceMs", 250, 50, 1000)
         this.MaxPlacementDelayMs := this.ReadInteger("AutoReflow", "MaxPlacementDelayMs", 1000, 200, 5000)
         this.ReflowCooldownMs := this.ReadInteger("AutoReflow", "ReflowCooldownMs", 750, 0, 10000)
@@ -29,6 +42,7 @@ class Config {
         this.ManualAllowResizeExistingWindows := this.ReadBool("ManualReflow", "ManualAllowResizeExistingWindows", true)
         this.ManualIncludeMaximized := this.ReadBool("ManualReflow", "ManualIncludeMaximized", false)
         this.MinimumExistingSizeRatio := this.ReadNumber("ManualReflow", "MinimumExistingSizeRatio", 0.70, 0.25, 1.0)
+        this.MaximumExistingSizeRatio := this.ReadNumber("ManualReflow", "MaximumExistingSizeRatio", 1.30, 1.0, 2.0)
         this.ReflowMaxIterations := this.ReadInteger("ManualReflow", "ReflowMaxIterations", 8, 1, 20)
 
         this.PreferAvoidFocusedWindow := this.ReadBool("Placement", "PreferAvoidFocusedWindow", true)
@@ -40,7 +54,7 @@ class Config {
 
         this.SmoothMovement := this.ReadBool("Motion", "SmoothMovement", true)
         this.SmoothDurationMs := this.ReadInteger("Motion", "SmoothDurationMs", 160, 0, 400)
-        this.SmoothFrameIntervalMs := this.ReadInteger("Motion", "SmoothFrameIntervalMs", 16, 8, 50)
+        this.SmoothFrameIntervalMs := this.ReadInteger("Motion", "SmoothFrameIntervalMs", 8, 4, 50)
         this.SmoothMaxDurationMs := this.ReadInteger("Motion", "SmoothMaxDurationMs", 260, 0, 600)
         if (this.SmoothDurationMs > this.SmoothMaxDurationMs) {
             this.SmoothDurationMs := this.SmoothMaxDurationMs
@@ -53,6 +67,8 @@ class Config {
         this.ManualMovementWeight := this.ReadNumber("Scoring", "ManualMovementWeight", 0.45, 0.0, 100.0)
         this.SpacingWeight := this.ReadNumber("Scoring", "SpacingWeight", 0.35, 0.0, 100.0)
         this.CenterWeight := this.ReadNumber("Scoring", "CenterWeight", 0.25, 0.0, 100.0)
+        this.TargetCoverage := this.ReadNumber("Scoring", "TargetCoverage", 0.90, 0.0, 1.0)
+        this.CoverageWeight := this.ReadNumber("Scoring", "CoverageWeight", 4.0, 0.0, 100.0)
 
         this.UndoEnabled := this.ReadBool("Undo", "Enabled", true)
         this.HistoryDepth := this.ReadInteger("Undo", "HistoryDepth", 1, 1, 10)
@@ -65,6 +81,19 @@ class Config {
         this.HotkeyToggleLock := this.ReadHotkey("Hotkeys", "ToggleLockActive", "^!+k")
         this.HotkeyPlaceActive := this.ReadHotkey("Hotkeys", "PlaceActive", "^!+o")
         this.HotkeyReload := this.ReadHotkey("Hotkeys", "ReloadConfig", "^!+r")
+        this.EnableDoubleCapsReflow := this.ReadBool("Hotkeys", "EnableDoubleCapsReflow", true)
+        this.DoubleCapsIntervalMs := this.ReadInteger(
+            "Hotkeys",
+            "DoubleCapsIntervalMs",
+            500,
+            200,
+            1000
+        )
+        this.DoubleCapsRestoreFullscreen := this.ReadBool(
+            "Hotkeys",
+            "DoubleCapsRestoreFullscreen",
+            true
+        )
     }
 
     ReadBool(section, key, defaultValue) {

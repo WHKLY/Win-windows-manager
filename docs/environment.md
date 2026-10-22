@@ -40,7 +40,7 @@
 | 仓库图标 | `assets\Win-windows-manager.png`、`assets\Win-windows-manager.ico` |
 | 图标尺寸 | 1254×1254 RGBA；ICO 包含 16、24、32、48、64、128、256 px |
 
-用户要求最终交付可直接运行的 `.exe`。构建阶段已下载官方 Ahk2Exe 发布包到项目忽略目录，并以 AutoHotkey v2 64 位运行器生成 `dist/Win-windows-manager-v0.1.0.exe`。
+用户要求最终交付可直接运行的 `.exe`。构建阶段已下载官方 Ahk2Exe 发布包到项目忽略目录，并以 AutoHotkey v2 64 位运行器生成 `dist/Win-windows-manager-v0.1.1.exe`。
 
 ## 工具
 

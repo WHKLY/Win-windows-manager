@@ -12,6 +12,10 @@ class WindowManagerApp {
         this.Pending := Map()
         this.ProcessScheduled := false
         this.MaxPendingCandidates := 256
+        this.DoubleCapsGesture := 0
+        this.DoubleCapsHotkey := "~CapsLock"
+        this.CapsIsDown := false
+        this.CapsReleaseWatchActive := false
         this.RegisteredHotkeys := []
         this.LastLayoutTick := 0
         this.CleanedUp := false
@@ -25,6 +29,7 @@ class WindowManagerApp {
             this.Config.DryRun := true
             this.Config.ReflowOnNewWindow := false
         }
+        this.DoubleCapsGesture := DoubleTapGesture(this.Config.DoubleCapsIntervalMs)
         this.Logger := Logger(this.BaseDirectory "\logs", this.Config.DebugLogging)
         this.Registry := WindowRegistry(this.Config, this.Logger)
         this.History := LayoutHistory(this.Config.HistoryDepth)
@@ -37,7 +42,7 @@ class WindowManagerApp {
         this.Events.Start()
 
         this.Logger.Info("application_started", Map(
-            "version", "0.1.0",
+            "version", "0.1.1",
             "compiled", A_IsCompiled,
             "dry_run", this.Config.DryRun,
             "smooth_movement", this.Config.SmoothMovement,
@@ -223,18 +228,34 @@ class WindowManagerApp {
     }
 
     ReflowCurrentMonitor(*) {
+        this.ReflowMonitorForScope(false, "manual_current_monitor")
+    }
+
+    ReflowCurrentMonitorWithFullscreenRestore(*) {
+        this.ReflowMonitorForScope(true, "double_caps_reflow")
+    }
+
+    ReflowMonitorForScope(includeFullscreen, reason, monitorOverride := 0) {
         if (!this.Config.EnableManualReflow) {
             this.ShowTip("手动重排已禁用")
             return
         }
-        monitor := this.GetScopeMonitor()
+        monitor := monitorOverride ? monitorOverride : this.GetScopeMonitor()
+        if (includeFullscreen) {
+            this.RestoreMaximizedWindowsForDoubleCaps(monitor)
+        }
         active := this.Registry.GetForegroundWindow()
-        planInfo := this.BuildManualPlanForMonitor(monitor, active, "manual_reflow")
+        planInfo := this.BuildManualPlanForMonitor(
+            monitor,
+            active,
+            "manual_reflow",
+            includeFullscreen
+        )
         if (!planInfo) {
             this.ShowTip("当前显示器没有可排布的窗口")
             return
         }
-        this.ExecutePlan(planInfo.windows, planInfo.plan, "manual_reflow", "manual_current_monitor")
+        return this.ExecutePlan(planInfo.windows, planInfo.plan, "manual_reflow", reason)
     }
 
     ReflowAllMonitors(*) {
@@ -287,7 +308,7 @@ class WindowManagerApp {
         this.ExecutePlan(combinedWindows, plan, "manual_reflow", "manual_all_monitors")
     }
 
-    BuildManualPlanForMonitor(monitor, activeId, mode) {
+    BuildManualPlanForMonitor(monitor, activeId, mode, includeFullscreen := false) {
         monitorInfo := this.Registry.GetMonitorInfo(monitor)
         if (!monitorInfo) {
             return 0
@@ -295,7 +316,8 @@ class WindowManagerApp {
         windows := this.Registry.GetEligibleWindows(
             monitor,
             this.Config.ManualIncludeMaximized,
-            0
+            0,
+            includeFullscreen
         )
         if (windows.Length = 0) {
             return 0
@@ -310,6 +332,45 @@ class WindowManagerApp {
             windows: windows,
             plan: plan
         }
+    }
+
+    RestoreMaximizedWindowsForDoubleCaps(monitor) {
+        if (!this.Config.DoubleCapsRestoreFullscreen || !monitor) {
+            return 0
+        }
+        candidates := this.Registry.GetEligibleWindows(monitor, true, 0, true)
+        restoreCount := 0
+        for info in candidates {
+            if (!info.isFullscreen || !info.isMaximized) {
+                continue
+            }
+            DllCall("ShowWindowAsync", "Ptr", info.hwnd, "Int", 9)
+            restoreCount += 1
+        }
+        if (restoreCount) {
+            Loop 10 {
+                Sleep(20)
+                allRestored := true
+                for info in candidates {
+                    if (!info.isMaximized) {
+                        continue
+                    }
+                    current := this.Registry.GetWindowInfo(info.hwnd, true)
+                    if (current.eligible && current.isMaximized) {
+                        allRestored := false
+                        break
+                    }
+                }
+                if (allRestored) {
+                    break
+                }
+            }
+        }
+        this.Logger.Info("fullscreen_restore_completed", Map(
+            "monitor", monitor,
+            "count", restoreCount
+        ))
+        return restoreCount
     }
 
     PlaceActiveWindow(*) {
@@ -496,6 +557,8 @@ class WindowManagerApp {
             "quality_gain", Round(plan.QualityImprovementRatio, 4),
             "score_before", Round(plan.ScoreBefore.Total, 4),
             "score_after", Round(plan.ScoreAfter.Total, 4),
+            "coverage_before", plan.ScoreBefore.HasProp("Coverage") ? Round(plan.ScoreBefore.Coverage, 4) : 0.0,
+            "coverage_after", plan.ScoreAfter.HasProp("Coverage") ? Round(plan.ScoreAfter.Coverage, 4) : 0.0,
             "changed", plan.ChangedIds.Length,
             "smooth", this.Config.SmoothMovement,
             "duration_ms", this.Config.SmoothDurationMs
@@ -531,6 +594,7 @@ class WindowManagerApp {
     ReloadConfiguration(*) {
         try {
             this.LoadConfig()
+            this.DoubleCapsGesture.SetMaxInterval(this.Config.DoubleCapsIntervalMs)
             this.History.MaximumDepth := this.Config.HistoryDepth
             this.UnregisterHotkeys()
             this.RegisterHotkeys()
@@ -566,6 +630,62 @@ class WindowManagerApp {
                 ))
             }
         }
+        if (this.Config.EnableDoubleCapsReflow) {
+            try {
+                Hotkey(this.DoubleCapsHotkey, ObjBindMethod(this, "OnCapsLockDown"))
+                this.RegisteredHotkeys.Push(this.DoubleCapsHotkey)
+            } catch Error as err {
+                this.Logger.Warn("double_caps_registration_failed", Map("error", err.Message))
+            }
+        }
+    }
+
+    OnCapsLockDown(*) {
+        if (this.CleanedUp) {
+            return
+        }
+        if (this.CapsIsDown) {
+            return
+        }
+        this.CapsIsDown := true
+        this.StartCapsReleaseWatch()
+
+        modifiersHeld := GetKeyState("Ctrl", "P")
+            || GetKeyState("Alt", "P")
+            || GetKeyState("Shift", "P")
+            || GetKeyState("LWin", "P")
+            || GetKeyState("RWin", "P")
+        if (modifiersHeld) {
+            this.DoubleCapsGesture.Reset()
+            return
+        }
+        this.Logger.Debug("capslock_key_down")
+        triggered := this.DoubleCapsGesture.Press(A_TickCount)
+        if (triggered) {
+            this.Logger.Info("double_caps_reflow_triggered")
+            this.ReflowCurrentMonitorWithFullscreenRestore()
+        }
+    }
+
+    StartCapsReleaseWatch() {
+        if (this.CapsReleaseWatchActive) {
+            return
+        }
+        this.CapsReleaseWatchActive := true
+        SetTimer(ObjBindMethod(this, "WatchCapsRelease"), -10)
+    }
+
+    WatchCapsRelease(*) {
+        if (GetKeyState("CapsLock", "P")) {
+            SetTimer(ObjBindMethod(this, "WatchCapsRelease"), -10)
+            return
+        }
+        this.CapsReleaseWatchActive := false
+        this.CapsIsDown := false
+    }
+
+    CompleteCapsPress() {
+        this.CapsIsDown := false
     }
 
     UnregisterHotkeys() {
@@ -578,7 +698,7 @@ class WindowManagerApp {
     }
 
     BuildTrayMenu() {
-        A_IconTip := "Win-windows-manager v0.1.0"
+        A_IconTip := "Win-windows-manager v0.1.1"
         A_TrayMenu.Delete()
         this.ApplyTrayIcon()
         A_TrayMenu.Add(
@@ -716,6 +836,10 @@ class WindowManagerApp {
             return 0
         }
         this.CleanedUp := true
+        if (this.CapsReleaseWatchActive) {
+            SetTimer(ObjBindMethod(this, "WatchCapsRelease"), 0)
+            this.CapsReleaseWatchActive := false
+        }
         if (this.ProcessScheduled) {
             SetTimer(ObjBindMethod(this, "ProcessNewCandidates"), 0)
             this.ProcessScheduled := false

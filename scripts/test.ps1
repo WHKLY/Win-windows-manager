@@ -20,6 +20,11 @@ $testSuites = @(
         Arguments = @('/ErrorStdOut', 'tests\motion_integration.ahk')
     },
     @{
+        Name = 'motion-performance'
+        Path = 'tests\motion_performance.ahk'
+        Arguments = @('/ErrorStdOut', 'tests\motion_performance.ahk')
+    },
+    @{
         Name = 'registry'
         Path = 'tests\window_registry_integration.ahk'
         Arguments = @('/ErrorStdOut', 'tests\window_registry_integration.ahk')
@@ -33,6 +38,16 @@ $testSuites = @(
         Name = 'manual-undo'
         Path = 'tests\manual_undo_integration.ahk'
         Arguments = @('/ErrorStdOut', 'tests\manual_undo_integration.ahk')
+    },
+    @{
+        Name = 'double-caps'
+        Path = 'tests\double_caps_integration.ahk'
+        Arguments = @('/ErrorStdOut', 'tests\double_caps_integration.ahk')
+    },
+    @{
+        Name = 'double-caps-fullscreen'
+        Path = 'tests\double_caps_fullscreen_integration.ahk'
+        Arguments = @('/ErrorStdOut', 'tests\double_caps_fullscreen_integration.ahk')
     },
     @{
         Name = 'window-churn'

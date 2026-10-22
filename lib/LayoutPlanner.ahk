@@ -332,37 +332,44 @@ class LayoutPlanner {
         desired := this.DefaultNewRect(window, workArea, config)
         if (mode = "auto_new" || mode = "manual_one") {
             this.AddWindowSize(sizes, window, workArea, config, desired.w, desired.h)
+            this.AddWindowSize(sizes, window, workArea, config, workArea.w * 0.80, workArea.h * 0.85)
+            this.AddWindowSize(sizes, window, workArea, config, workArea.w * 0.90, workArea.h * 0.90)
         }
 
         if (mode = "manual_existing" || mode = "auto_existing") {
-            minimumRatio := mode = "manual_existing" ? config.MinimumExistingSizeRatio : 1.0
-            for ratio in [0.95, 0.90, 0.85, 0.80] {
-                if (ratio < minimumRatio) {
-                    continue
-                }
-                this.AddWindowSize(
-                    sizes,
-                    window,
-                    workArea,
-                    config,
-                    current.w * ratio,
-                    current.h * ratio
-                )
+            bounds := this.GetExistingResizeBounds(window, workArea, config, mode)
+            ratios := mode = "manual_existing"
+                ? [0.80, 0.90, 1.0, 1.10, 1.20, 1.30]
+                : [0.80, 0.90, 1.0, 1.10, 1.20]
+            for ratio in ratios {
+                width := Geometry.Clamp(current.w * ratio, bounds.minW, bounds.maxW)
+                height := Geometry.Clamp(current.h * ratio, bounds.minH, bounds.maxH)
+                this.AddWindowSize(sizes, window, workArea, config, width, height)
             }
-            if (mode = "manual_existing") {
-                minimumWidth := current.w * minimumRatio
-                minimumHeight := current.h * minimumRatio
-                this.AddWindowSize(
-                    sizes,
-                    window,
-                    workArea,
-                    config,
-                    Max(desired.w, minimumWidth),
-                    Max(desired.h, minimumHeight)
-                )
-            }
+            desiredWidth := Geometry.Clamp(desired.w, bounds.minW, bounds.maxW)
+            desiredHeight := Geometry.Clamp(desired.h, bounds.minH, bounds.maxH)
+            this.AddWindowSize(sizes, window, workArea, config, desiredWidth, desiredHeight)
         }
         return sizes
+    }
+
+    static GetExistingResizeBounds(window, workArea, config, mode) {
+        minimumRatio := mode = "manual_existing"
+            ? config.MinimumExistingSizeRatio
+            : config.AutoMinimumExistingSizeRatio
+        maximumRatio := mode = "manual_existing"
+            ? config.MaximumExistingSizeRatio
+            : config.AutoMaximumExistingSizeRatio
+        minW := Max(window.minW, Round(window.w * minimumRatio))
+        minH := Max(window.minH, Round(window.h * minimumRatio))
+        maxW := Min(window.maxW, Round(window.w * maximumRatio), workArea.w - 2 * config.MarginPx)
+        maxH := Min(window.maxH, Round(window.h * maximumRatio), workArea.h - 2 * config.MarginPx)
+        return {
+            minW: Min(minW, Max(1, maxW)),
+            minH: Min(minH, Max(1, maxH)),
+            maxW: Max(1, maxW),
+            maxH: Max(1, maxH)
+        }
     }
 
     static AddWindowSize(sizes, window, workArea, config, width, height) {
@@ -476,8 +483,35 @@ class LayoutPlanner {
         }
 
         count := movable.Length
-        aspect := workArea.w / Max(1, workArea.h)
-        columns := Geometry.Clamp(Ceil(Sqrt(count * aspect)), 1, count)
+        bestTargets := baseline
+        bestCoverage := -1.0
+        bestScore := 999999
+        Loop count {
+            columns := A_Index
+            candidateTargets := this.BuildGridPlanForColumns(
+                windows,
+                workArea,
+                config,
+                movable,
+                columns
+            )
+            score := this.ScoreLayout(windows, candidateTargets, workArea, "manual", config)
+            if (!score.Valid) {
+                continue
+            }
+            if (score.Coverage > bestCoverage + 0.0001
+                || (Abs(score.Coverage - bestCoverage) <= 0.0001 && score.Total < bestScore)) {
+                bestTargets := candidateTargets
+                bestCoverage := score.Coverage
+                bestScore := score.Total
+            }
+        }
+        return bestTargets
+    }
+
+    static BuildGridPlanForColumns(windows, workArea, config, movable, columns) {
+        baseline := this.OriginalTargets(windows)
+        count := movable.Length
         rows := Ceil(count / columns)
         cellWidth := Max(1, (workArea.w - (columns + 1) * config.MarginPx) / columns)
         cellHeight := Max(1, (workArea.h - (rows + 1) * config.MarginPx) / rows)
@@ -492,8 +526,9 @@ class LayoutPlanner {
             width := targets[window.id].w
             height := targets[window.id].h
             if (window.canResize) {
-                width := this.ClampDimension(Min(width, cellWidth), window.minW, window.maxW, cellWidth)
-                height := this.ClampDimension(Min(height, cellHeight), window.minH, window.maxH, cellHeight)
+                bounds := this.GetExistingResizeBounds(window, workArea, config, "manual_existing")
+                width := this.ClampDimension(cellWidth, bounds.minW, bounds.maxW, cellWidth)
+                height := this.ClampDimension(cellHeight, bounds.minH, bounds.maxH, cellHeight)
             }
             x := Round(cellX + (cellWidth - width) / 2)
             y := Round(cellY + (cellHeight - height) / 2)
@@ -506,8 +541,7 @@ class LayoutPlanner {
         candidates := []
         newRect := baseline[windows[newIndex].id]
         for index, window in windows {
-            if (index = newIndex || window.isLocked || window.isInteracting
-                || !window.canMove || window.recentlyUserChanged) {
+            if (index = newIndex || window.isLocked || window.isInteracting || !window.canMove) {
                 continue
             }
             overlap := Geometry.IntersectionArea(window.rect, newRect)
@@ -621,9 +655,6 @@ class LayoutPlanner {
                 dy := target.y - window.y
                 displacement := Sqrt(dx * dx + dy * dy) / diagonal
                 factor := mode = "auto" ? config.AutoMovementWeight : config.ManualMovementWeight
-                if (window.recentlyUserChanged && mode = "auto") {
-                    factor *= 2.5
-                }
                 movementRaw += displacement * factor
             } else if (window.isNew && window.canMove) {
                 dx := target.x - window.x
@@ -678,13 +709,16 @@ class LayoutPlanner {
         dx := layoutCenterX - workCenterX
         dy := layoutCenterY - workCenterY
         centerRaw := Sqrt(dx * dx + dy * dy) / diagonal
+        coverage := this.CoverageRatio(windows, targets, workArea)
+        coverageRaw := Max(0.0, config.TargetCoverage - coverage)
 
         overlapCost := overlapRaw * config.OverlapWeight
         focusCost := focusRaw * config.FocusWeight
         sizeCost := sizeRaw * config.SizeWeight
+        coverageCost := coverageRaw * config.CoverageWeight
         spacingCost := spacingRaw * config.SpacingWeight
         centerCost := centerRaw * config.CenterWeight
-        total := movementRaw + overlapCost + focusCost + sizeCost + spacingCost + centerCost
+        total := movementRaw + overlapCost + focusCost + sizeCost + coverageCost + spacingCost + centerCost
         if (!valid) {
             total += 100000
         }
@@ -695,6 +729,8 @@ class LayoutPlanner {
             OverlapCost: overlapCost,
             FocusCost: focusCost,
             SizeCost: sizeCost,
+            CoverageCost: coverageCost,
+            Coverage: coverage,
             MovementCost: movementRaw,
             SpacingCost: spacingCost,
             CenterCost: centerCost,
@@ -702,6 +738,105 @@ class LayoutPlanner {
             FocusRaw: focusRaw,
             MovementRaw: movementRaw
         }
+    }
+
+    static CoverageRatio(windows, targets, workArea) {
+        workAreaValue := Max(1, workArea.w * workArea.h)
+        cuts := [workArea.x, workArea.x + workArea.w]
+        for window in windows {
+            if (!targets.Has(window.id)) {
+                continue
+            }
+            rect := targets[window.id]
+            left := Geometry.Clamp(rect.x, workArea.x, workArea.x + workArea.w)
+            right := Geometry.Clamp(rect.x + rect.w, workArea.x, workArea.x + workArea.w)
+            cuts.Push(left)
+            cuts.Push(right)
+        }
+        cuts := this.SortedUniqueNumbers(cuts)
+
+        coveredArea := 0.0
+        Loop cuts.Length - 1 {
+            left := cuts[A_Index]
+            right := cuts[A_Index + 1]
+            if (right <= left) {
+                continue
+            }
+            midpoint := (left + right) / 2
+            intervals := []
+            for window in windows {
+                if (!targets.Has(window.id)) {
+                    continue
+                }
+                rect := targets[window.id]
+                if (midpoint < rect.x || midpoint >= rect.x + rect.w) {
+                    continue
+                }
+                top := Geometry.Clamp(rect.y, workArea.y, workArea.y + workArea.h)
+                bottom := Geometry.Clamp(rect.y + rect.h, workArea.y, workArea.y + workArea.h)
+                if (bottom > top) {
+                    intervals.Push({start: top, end: bottom})
+                }
+            }
+            if (intervals.Length = 0) {
+                continue
+            }
+
+            Loop intervals.Length - 1 {
+                position := A_Index + 1
+                current := intervals[position]
+                scan := position - 1
+                while (scan >= 1 && current.start < intervals[scan].start) {
+                    intervals[scan + 1] := intervals[scan]
+                    scan -= 1
+                }
+                intervals[scan + 1] := current
+            }
+
+            mergedLength := intervals[1].end - intervals[1].start
+            currentEnd := intervals[1].end
+            for index, interval in intervals {
+                if (index = 1) {
+                    continue
+                }
+                if (interval.start > currentEnd) {
+                    mergedLength += interval.end - interval.start
+                    currentEnd := interval.end
+                } else if (interval.end > currentEnd) {
+                    mergedLength += interval.end - currentEnd
+                    currentEnd := interval.end
+                }
+            }
+            coveredArea += (right - left) * mergedLength
+        }
+        return Min(1.0, coveredArea / workAreaValue)
+    }
+
+    static SortedUniqueNumbers(values) {
+        unique := []
+        for value in values {
+            found := false
+            for existing in unique {
+                if (Abs(existing - value) < 0.01) {
+                    found := true
+                    break
+                }
+            }
+            if (!found) {
+                unique.Push(value)
+            }
+        }
+        Loop unique.Length - 1 {
+            position := A_Index + 1
+            current := unique[position]
+            scan := position - 1
+            while (scan >= 1 && current < unique[scan]) {
+                unique[scan + 1] := unique[scan]
+                scan -= 1
+            }
+            unique[scan + 1] := current
+        }
+        return unique
     }
 
     static RectangleGap(first, second) {

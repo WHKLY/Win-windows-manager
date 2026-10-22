@@ -42,3 +42,7 @@ bbd9bf4008183dd7fb5cbe10a4b355e9b82be6c6c1a5c8e4f3d2da893861a26b
 1. 推送 `main` 和 `v0.1.0` tag。
 2. 创建 GitHub Release `v0.1.0`。
 3. 上传 `Win-windows-manager-v0.1.0.exe` 和 `Win-windows-manager-v0.1.0.zip`。
+
+## 发布后变更
+
+当前 `main` 分支已新增 `~CapsLock` 双击重排快捷键、全屏/Topmost 窗口恢复、高刷新率平滑动画及覆盖率优先的积极自动布局，但不包含在本 `v0.1.0` Release 中。这些功能需要在后续版本中重新构建、测试、提交并发布。
