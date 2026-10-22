@@ -36,8 +36,11 @@
 | 本地帮助文件 | `C:\Program Files\AutoHotkey\v2\AutoHotkey.chm` |
 | Ahk2Exe | 1.1.37.02a2 |
 | 本地编译器路径 | `.tools\Ahk2Exe\Ahk2Exe.exe`（不纳入 Git） |
+| 图标源文件 | `C:\Users\27073\Downloads\Win-windows-manager.png` |
+| 仓库图标 | `assets\Win-windows-manager.png`、`assets\Win-windows-manager.ico` |
+| 图标尺寸 | 1254×1254 RGBA；ICO 包含 16、24、32、48、64、128、256 px |
 
-用户要求最终交付可直接运行的 `.exe`。构建阶段已下载官方 Ahk2Exe 发布包到项目忽略目录，并以 AutoHotkey v2 64 位运行器成功生成 `dist/WindowswindowsManager.exe`。
+用户要求最终交付可直接运行的 `.exe`。构建阶段已下载官方 Ahk2Exe 发布包到项目忽略目录，并以 AutoHotkey v2 64 位运行器生成 `dist/Win-windows-manager-v0.1.0.exe`。
 
 ## 工具
 

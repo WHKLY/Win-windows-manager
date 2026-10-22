@@ -17,7 +17,7 @@ global ManualTestCount := 0
 runtimeDirectory := A_ScriptDir "\runtime\manual-undo"
 DirCreate(runtimeDirectory)
 testConfigPath := runtimeDirectory "\config.ini"
-testLogPath := runtimeDirectory "\logs\windowswindowsmanager.log"
+testLogPath := runtimeDirectory "\logs\win-windows-manager.log"
 if (FileExist(testLogPath)) {
     FileDelete(testLogPath)
 }

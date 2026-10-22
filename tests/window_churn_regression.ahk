@@ -16,7 +16,7 @@ global windowChurnErrorLog := ""
 runtimeDirectory := A_ScriptDir "\runtime\window-churn"
 DirCreate(runtimeDirectory)
 testConfigPath := runtimeDirectory "\config.ini"
-testLogPath := runtimeDirectory "\logs\windowswindowsmanager.log"
+testLogPath := runtimeDirectory "\logs\win-windows-manager.log"
 windowChurnErrorLog := runtimeDirectory "\uncaught-errors.log"
 if (FileExist(testLogPath)) {
     FileDelete(testLogPath)

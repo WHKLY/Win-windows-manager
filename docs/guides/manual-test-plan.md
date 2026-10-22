@@ -12,11 +12,11 @@
 
 ## 准备
 
-1. 将 `WindowswindowsManager.exe` 与 `config.ini` 放入同一目录。
+1. 将 `Win-windows-manager-v0.1.0.exe` 与 `config.ini` 放入同一目录。
 2. 先保留默认配置并启用 DebugLogging。
 3. 打开 Windows Terminal、文件资源管理器、浏览器和 VS Code。
 4. 记录启动前窗口几何；测试过程不要同时运行其他窗口管理器。
-5. 每类测试结束后检查 `logs/windowswindowsmanager.log` 是否有未处理异常。
+5. 每类测试结束后检查 `logs/win-windows-manager.log` 是否有未处理异常。
 
 ## 用例
 

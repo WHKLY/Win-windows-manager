@@ -14,7 +14,7 @@
 runtimeDirectory := A_ScriptDir "\runtime"
 DirCreate(runtimeDirectory)
 testConfigPath := runtimeDirectory "\config.ini"
-testLogPath := runtimeDirectory "\logs\windowswindowsmanager.log"
+testLogPath := runtimeDirectory "\logs\win-windows-manager.log"
 if (FileExist(testLogPath)) {
     FileDelete(testLogPath)
 }
@@ -49,6 +49,10 @@ FinishSmokeTest(app, testGui, positionBeforeStartup) {
         }
         if (!FileExist(app.Logger.Path)) {
             throw Error("log file was not created")
+        }
+        startupLog := FileRead(app.Logger.Path, "UTF-8")
+        if (InStr(startupLog, "[WARN]") || InStr(startupLog, "[ERROR]")) {
+            throw Error("startup log contains WARN or ERROR; tray icon may have failed")
         }
         if (app.RegisteredHotkeys.Length < 5) {
             throw Error("default hotkey registration was incomplete")

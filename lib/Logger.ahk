@@ -2,7 +2,7 @@ class Logger {
     __New(logDirectory, debugEnabled := false) {
         this.Directory := logDirectory
         this.DebugEnabled := debugEnabled
-        this.Path := RTrim(logDirectory, "\/") "\windowswindowsmanager.log"
+        this.Path := RTrim(logDirectory, "\/") "\win-windows-manager.log"
         try {
             DirCreate(logDirectory)
         }

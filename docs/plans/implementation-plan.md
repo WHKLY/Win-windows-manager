@@ -93,7 +93,7 @@
 - 完成日志脱敏、配置范围检查、README 和已知限制。
 - 执行第 8 节全部可执行测试，记录未测试项及原因。
 - 汇总最终变更文件、验证证据、残余风险和后续 P1 候选。
-- 使用 Ahk2Exe 构建 `dist/WindowswindowsManager.exe`，记录校验值并完成可执行文件冒烟测试。
+- 使用 Ahk2Exe 构建 `dist/Win-windows-manager-v0.1.0.exe`，嵌入应用图标，记录校验值并完成可执行文件冒烟测试。
 
 重点验收：
 

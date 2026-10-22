@@ -44,7 +44,7 @@ class WindowManagerApp {
             "smoke_test", this.SmokeTestMode
         ))
         TrayTip(
-            "WindowswindowsManager 已启动",
+            "Win-windows-manager 已启动",
             this.Config.DryRun ? "当前为 DryRun 模式" : "自动模式已启用",
             1
         )
@@ -209,12 +209,12 @@ class WindowManagerApp {
     HandleNewWindow(newWindow) {
         workInfo := this.Registry.GetMonitorInfo(newWindow.monitor)
         if (!workInfo) {
-            this.Logger.Warn("new_window_monitor_missing", Map("id", newWindow.id))
+            this.Logger.Debug("new_window_monitor_missing", Map("id", newWindow.id))
             return
         }
         windows := this.Registry.GetEligibleWindows(newWindow.monitor, false, newWindow.hwnd)
         if (!this.ContainsWindow(windows, newWindow.id)) {
-            this.Logger.Warn("new_window_not_eligible_after_debounce", Map("id", newWindow.id))
+            this.Logger.Debug("new_window_not_eligible_after_debounce", Map("id", newWindow.id))
             return
         }
 
@@ -578,8 +578,9 @@ class WindowManagerApp {
     }
 
     BuildTrayMenu() {
-        A_IconTip := "WindowswindowsManager"
+        A_IconTip := "Win-windows-manager v0.1.0"
         A_TrayMenu.Delete()
+        this.ApplyTrayIcon()
         A_TrayMenu.Add(
             this.Paused ? "恢复自动管理" : "暂停自动管理",
             ObjBindMethod(this, "TogglePause")
@@ -601,11 +602,41 @@ class WindowManagerApp {
         A_TrayMenu.Add("退出", ObjBindMethod(this, "RequestExit"))
     }
 
+    ApplyTrayIcon() {
+        if (A_IsCompiled) {
+            iconSource := A_ScriptFullPath
+        } else {
+            iconCandidates := [
+                this.BaseDirectory "\assets\Win-windows-manager.ico",
+                A_ScriptDir "\assets\Win-windows-manager.ico",
+                A_ScriptDir "\..\assets\Win-windows-manager.ico"
+            ]
+            iconSource := ""
+            for candidate in iconCandidates {
+                if (FileExist(candidate)) {
+                    iconSource := candidate
+                    break
+                }
+            }
+            if (iconSource = "") {
+                iconSource := iconCandidates[1]
+            }
+        }
+        try {
+            TraySetIcon(iconSource, 1)
+        } catch Error as err {
+            this.Logger.Warn("tray_icon_load_failed", Map(
+                "source", iconSource,
+                "error", err.Message
+            ))
+        }
+    }
+
     IsStartupEnabled() {
         try {
             value := RegRead(
                 "HKCU\Software\Microsoft\Windows\CurrentVersion\Run",
-                "WindowswindowsManager"
+                "Win-windows-manager"
             )
             return value != ""
         } catch {
@@ -617,7 +648,7 @@ class WindowManagerApp {
         key := "HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
         if (this.IsStartupEnabled()) {
             try {
-                RegDelete(key, "WindowswindowsManager")
+                RegDelete(key, "Win-windows-manager")
                 this.ShowTip("开机启动已关闭")
             } catch Error as err {
                 this.Logger.Error("startup_disable_failed", Map("error", err.Message))
@@ -627,7 +658,7 @@ class WindowManagerApp {
                 ? '"' A_ScriptFullPath '"'
                 : '"' A_AhkPath '" "' A_ScriptFullPath '"'
             try {
-                RegWrite(command, "REG_SZ", key, "WindowswindowsManager")
+                RegWrite(command, "REG_SZ", key, "Win-windows-manager")
                 this.ShowTip("开机启动已启用")
             } catch Error as err {
                 this.Logger.Error("startup_enable_failed", Map("error", err.Message))
@@ -673,7 +704,7 @@ class WindowManagerApp {
     }
 
     ShowTip(message) {
-        TrayTip(message, "WindowswindowsManager", 1)
+        TrayTip(message, "Win-windows-manager", 1)
     }
 
     RequestExit(*) {

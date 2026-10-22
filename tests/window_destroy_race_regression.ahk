@@ -16,7 +16,7 @@ global destroyRaceErrorLog := ""
 runtimeDirectory := A_ScriptDir "\runtime\window-destroy-race"
 DirCreate(runtimeDirectory)
 testConfigPath := runtimeDirectory "\config.ini"
-testLogPath := runtimeDirectory "\logs\windowswindowsmanager.log"
+testLogPath := runtimeDirectory "\logs\win-windows-manager.log"
 destroyRaceErrorLog := runtimeDirectory "\uncaught-errors.log"
 if (FileExist(testLogPath)) {
     FileDelete(testLogPath)

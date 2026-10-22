@@ -5,6 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
+$testStartedAt = Get-Date
 
 if (-not (Test-Path -LiteralPath $AhkPath -PathType Leaf)) {
     throw "AutoHotkey v2 runner not found: $AhkPath"
@@ -60,4 +61,19 @@ foreach ($suite in $testSuites) {
     }
 }
 
+$runtimeDirectory = Join-Path $root 'tests\runtime'
+$logProblems = @()
+if (Test-Path -LiteralPath $runtimeDirectory -PathType Container) {
+    $logProblems = Get-ChildItem -LiteralPath $runtimeDirectory -Recurse -File -Filter '*.log' |
+        Where-Object { $_.LastWriteTime -ge $testStartedAt } |
+        ForEach-Object {
+            Select-String -LiteralPath $_.FullName -Pattern '\[WARN\]|\[ERROR\]' -Encoding utf8
+        }
+}
+if ($logProblems.Count -gt 0) {
+    $logProblems | ForEach-Object { Write-Error "$($_.Path):$($_.LineNumber): $($_.Line)" }
+    throw 'Runtime logs contain WARN or ERROR entries.'
+}
+
 Write-Host 'All test suites passed.'
+Write-Host 'Runtime log check: no WARN or ERROR.'

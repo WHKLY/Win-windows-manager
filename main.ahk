@@ -1,6 +1,6 @@
 #Requires AutoHotkey v2.0
-;@Ahk2Exe-SetName WindowswindowsManager
-;@Ahk2Exe-SetDescription Windows smart floating window manager
+;@Ahk2Exe-SetName Win-windows-manager
+;@Ahk2Exe-SetDescription Win-windows-manager - smooth Windows window layout manager
 ;@Ahk2Exe-SetVersion 0.1.0.0
 #SingleInstance Force
 Persistent

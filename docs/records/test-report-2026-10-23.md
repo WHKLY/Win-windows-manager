@@ -48,32 +48,38 @@
 
 | 文件 | 大小 | 结果 |
 |---|---:|---|
-| `dist/WindowswindowsManager.exe` | 1,352,704 bytes | 已生成 |
-| `dist/WindowswindowsManager-0.1.0.zip` | 随文档变化 | 已生成 |
+| `dist/Win-windows-manager-v0.1.0.exe` | 1,428,992 bytes | 已生成 |
+| `dist/Win-windows-manager-v0.1.0.zip` | 随文档变化 | 已生成 |
 
 可执行文件 SHA-256：
 
 ```text
-19fd24a394eb62d50737094c96592f599a4864139eff22b5ccb4e377bb9e6303
+bbd9bf4008183dd7fb5cbe10a4b355e9b82be6c6c1a5c8e4f3d2da893861a26b
 ```
 
 版本资源：
 
-- ProductName: `WindowswindowsManager`
-- FileDescription: `Windows smart floating window manager`
+- ProductName: `Win-windows-manager`
+- FileDescription: `Win-windows-manager - smooth Windows window layout manager`
 - FileVersion/ProductVersion: `0.1.0.0`
 
 编译产物冒烟测试：
 
 ```powershell
-& '.\dist\WindowswindowsManager.exe' '--smoke-test'
+& '.\dist\Win-windows-manager-v0.1.0.exe' '--smoke-test'
 ```
 
 结果：退出码 `0`；日志确认 `compiled=1`、`dry_run=1`、`smoke_test=1`，并正常执行退出清理。
 
+图标验证：
+
+- `assets/Win-windows-manager.ico` 包含 16、24、32、48、64、128、256 px。
+- 从编译后的 exe 成功提取出关联图标，视觉内容与源图一致。
+- 编译版启动日志无 `tray_icon_load_failed` 或其他 WARN/ERROR。
+
 ## 初步真实使用验证
 
-用户使用修复版 `WindowswindowsManager.exe` 进行实际桌面操作，随后对修复版进程新增日志进行统计：
+用户使用修复版程序进行实际桌面操作，随后对修复版进程新增日志进行统计：
 
 | 指标 | 结果 |
 |---|---:|

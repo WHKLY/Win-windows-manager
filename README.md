@@ -1,10 +1,10 @@
-# WindowswindowsManager
+# Win-windows-manager
 
 基于 AutoHotkey v2 与 Win32 API 的 Windows 智能浮动窗口编排器。
 
 程序不会强制平铺窗口，而是把当前显示器上的普通窗口作为整体进行优化：合理放置新窗口，在收益足够明显时协同移动少量已有窗口，也支持用户主动重排当前显示器、锁定窗口和撤销最近一次布局。
 
-当前版本：`0.1.0`。
+当前版本：`0.1.0`。目标公开仓库名称为 `Win-windows-manager`。
 
 ## 当前状态
 
@@ -16,10 +16,10 @@
 
 ## 直接运行
 
-解压 `dist/WindowswindowsManager-0.1.0.zip`，保持 `WindowswindowsManager.exe` 与 `config.ini` 位于同一目录，然后运行：
+解压 `dist/Win-windows-manager-v0.1.0.zip`，保持 `Win-windows-manager-v0.1.0.exe` 与 `config.ini` 位于同一目录，然后运行：
 
 ```text
-WindowswindowsManager.exe
+Win-windows-manager-v0.1.0.exe
 ```
 
 - 程序默认在托盘中运行，不创建主窗口。
@@ -29,9 +29,11 @@ WindowswindowsManager.exe
 
 交付文件：
 
-- `dist/WindowswindowsManager.exe`
-- `dist/WindowswindowsManager-0.1.0.zip`
+- `dist/Win-windows-manager-v0.1.0.exe`
+- `dist/Win-windows-manager-v0.1.0.zip`
 - `dist/SHA256SUMS.txt`
+
+应用和托盘使用同一位图素材生成的多分辨率图标。素材与 ICO 位于 `assets/`，可通过 `python scripts/create_icons.py <源图.png>` 重新生成。
 
 ## 默认快捷键
 
@@ -114,7 +116,7 @@ SmoothMaxDurationMs=260
 测试启动模式会强制 DryRun、禁用自动重排并在一秒内退出：
 
 ```powershell
-& '.\dist\WindowswindowsManager.exe' '--smoke-test'
+& '.\dist\Win-windows-manager-v0.1.0.exe' '--smoke-test'
 ```
 
 ## 构建与测试
@@ -131,6 +133,8 @@ SmoothMaxDurationMs=260
 & '.\scripts\build.ps1'
 ```
 
+构建脚本会嵌入 `assets/Win-windows-manager.ico`，并清理旧名称的生成产物。
+
 本地构建脚本优先使用 `.tools/Ahk2Exe/Ahk2Exe.exe`，并以
 `C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe` 作为基础运行器。`.tools/` 和 `dist/` 不纳入 Git，但构建产物保留在工作区中供交付。
 
@@ -141,6 +145,7 @@ SmoothMaxDurationMs=260
 - [架构与平滑执行设计](docs/guides/architecture.md)
 - [分阶段实施计划](docs/plans/implementation-plan.md)
 - [本轮测试报告](docs/records/test-report-2026-10-23.md)
+- [v0.1.0 发布记录](docs/records/release-v0.1.0.md)
 - [阶段与测试验收](docs/records/acceptance.md)
 - [Windows 手动测试计划](docs/guides/manual-test-plan.md)
 - [已知限制](docs/records/known-limitations.md)

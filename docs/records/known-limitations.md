@@ -33,6 +33,6 @@
 ## 交付
 
 - `.exe` 未进行数字签名，Windows SmartScreen 可能提示未知发布者。
-- 发布包必须保持 `WindowswindowsManager.exe` 与 `config.ini` 同目录。
+- 发布包必须保持 `Win-windows-manager-v0.1.0.exe` 与 `config.ini` 同目录。
 - 当前没有 GUI 配置界面，配置通过 `config.ini` 和托盘操作完成。
 - 多实例互斥行为尚未完成专项验收；调试期间曾出现一个旧调试实例与当前测试实例同时存在的情况。正式发布前应验证重复启动会只保留一个有效实例。

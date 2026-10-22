@@ -8,7 +8,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $mainScript = Join-Path $root 'main.ahk'
 $distDirectory = Join-Path $root 'dist'
-$outputExe = Join-Path $distDirectory 'WindowswindowsManager.exe'
+$iconPath = Join-Path $root 'assets\Win-windows-manager.ico'
+$outputExe = Join-Path $distDirectory 'Win-windows-manager-v0.1.0.exe'
 $configSource = Join-Path $root 'config.ini'
 $readmeSource = Join-Path $root 'README.md'
 $docsSource = Join-Path $root 'docs'
@@ -27,14 +28,24 @@ if (-not (Test-Path -LiteralPath $CompilerPath -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $mainScript -PathType Leaf)) {
     throw "Main script not found: $mainScript"
 }
+if (-not (Test-Path -LiteralPath $iconPath -PathType Leaf)) {
+    throw "Application icon not found: $iconPath"
+}
 
 New-Item -ItemType Directory -Path $distDirectory -Force | Out-Null
+foreach ($obsoleteName in @('WindowswindowsManager.exe', 'WindowswindowsManager-0.1.0.zip')) {
+    $obsoletePath = Join-Path $distDirectory $obsoleteName
+    if (Test-Path -LiteralPath $obsoletePath -PathType Leaf) {
+        Remove-Item -LiteralPath $obsoletePath -Force
+    }
+}
 
 $compilerArgs = (
-    '/in "{0}" /out "{1}" /base "{2}" /silent' -f
+    '/in "{0}" /out "{1}" /base "{2}" /icon "{3}" /silent' -f
     $mainScript,
     $outputExe,
-    $AhkBase
+    $AhkBase,
+    $iconPath
 )
 
 Write-Host "Compiling $mainScript"
@@ -60,10 +71,10 @@ Get-ChildItem -LiteralPath $docsSource -Recurse -File | ForEach-Object {
 }
 
 $hash = Get-FileHash -LiteralPath $outputExe -Algorithm SHA256
-$hashLine = "$($hash.Hash.ToLowerInvariant())  WindowswindowsManager.exe"
+$hashLine = "$($hash.Hash.ToLowerInvariant())  Win-windows-manager-v0.1.0.exe"
 Set-Content -LiteralPath (Join-Path $distDirectory 'SHA256SUMS.txt') -Value $hashLine -Encoding ascii
 
-$releaseName = 'WindowswindowsManager-0.1.0.zip'
+$releaseName = 'Win-windows-manager-v0.1.0.zip'
 $releasePath = Join-Path $distDirectory $releaseName
 Compress-Archive `
     -LiteralPath $outputExe, (Join-Path $distDirectory 'config.ini'), (Join-Path $distDirectory 'README.md'), (Join-Path $distDirectory 'SHA256SUMS.txt'), $releaseDocs `

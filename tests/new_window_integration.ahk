@@ -29,7 +29,7 @@ IniWrite("", testConfigPath, "Hotkeys", "ToggleLockActive")
 IniWrite("", testConfigPath, "Hotkeys", "PlaceActive")
 IniWrite("", testConfigPath, "Hotkeys", "ReloadConfig")
 
-logPath := runtimeDirectory "\logs\windowswindowsmanager.log"
+logPath := runtimeDirectory "\logs\win-windows-manager.log"
 if (FileExist(logPath)) {
     FileDelete(logPath)
 }
