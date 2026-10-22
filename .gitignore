@@ -1,0 +1,20 @@
+# Runtime logs and generated outputs
+/logs/
+/build/
+/dist/
+/output/
+*.log
+
+# Local configuration overrides
+config.local.ini
+*.local.ini
+
+# Editor and IDE state
+.vscode/
+.idea/
+
+# Windows metadata and temporary files
+Thumbs.db
+Desktop.ini
+*.tmp
+*.bak
